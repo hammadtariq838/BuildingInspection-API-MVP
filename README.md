@@ -21,3 +21,24 @@ docker-compose down
 ```bash
 docker-compose run django python manage.py createsuperuser
 ```
+
+## Django commands
+1. First Time Setup
+```bash
+  virtualenv venv
+  pip install -r requirements.txt
+  python manage.py migrate
+```
+2. Create Super User
+```bash
+  python manage.py createsuperuser
+```
+3. Running the server
+```bash
+  python manage.py runserver
+```
+4. Check & Create Migrations
+```bash
+  python manage.py makemigrations
+  python manage.py migrate
+```
