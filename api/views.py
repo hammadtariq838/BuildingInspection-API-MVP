@@ -6,10 +6,7 @@ from .models import Project, Asset, Result
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-
-from .tasks import process_image_with_otsu
 from rest_framework.decorators import api_view, permission_classes
-from django.core.files.base import ContentFile
 
 
 class ProjectAssetsWithResultsView(APIView):
@@ -39,17 +36,12 @@ def process_project_assets(request, project_id):
     except Project.DoesNotExist:
         return Response({'message': 'Project not found or does not belong to you'}, status=status.HTTP_404_NOT_FOUND)
 
+    from .tasks import task_handler
     assets = Asset.objects.filter(project=project)
     for asset in assets:
-        processed_image = process_image_with_otsu(asset.asset_image.path)
-        # Save the processed image as a new Result
-        Result.objects.create(asset=asset, result_image=ContentFile(
-            processed_image.read(), name='processed.jpg'))
+        task_handler.delay(asset_id=asset.id)
 
-    # return the processed results
-    results = Result.objects.filter(asset__project=project)
-    serializer = ResultSerializer(results, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response({'message': 'Project assets have scheduled successfully!'}, status=status.HTTP_200_OK)
 
 
 class BulkAssetUploadView(APIView):

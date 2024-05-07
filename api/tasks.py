@@ -1,24 +1,66 @@
-import cv2
-# import numpy as np
-from django.core.files.base import ContentFile
-from django.core.files.images import ImageFile
-import io
+import os
+from celery import shared_task
+from .utils import handle_imageProcessing
+from django.conf import settings
+from .models import Asset, Result
 
 
-def process_image_with_otsu(image_path):
-    # Read the image
-    img = cv2.imread(image_path)
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+@shared_task
+def task_handler(asset_id):
+    asset = Asset.objects.get(id=asset_id)
 
-    # Apply Otsu's thresholding
-    _, img_otsu = cv2.threshold(
-        img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    PROCESS_TYPES = ['otsu', 'edge', 'color', 'separate']
 
-    # Apply Otsu's thresholding a second time
-    _, img_otsu_twice = cv2.threshold(
-        img_otsu, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    print('process types:', PROCESS_TYPES)
 
-    # Convert the processed image back to an in-memory file
-    is_success, buffer = cv2.imencode(".jpg", img_otsu_twice)
-    io_buf = io.BytesIO(buffer)
-    return ImageFile(io_buf, name='processed.jpg')
+    raw_image_path = asset.asset_image.path
+    print("raw_image_path", raw_image_path)
+
+    media_root = str(settings.MEDIA_ROOT)  # Convert WindowsPath to string
+    inspection_results_path = os.path.join(media_root, "results")
+
+    if not os.path.exists(inspection_results_path):
+        os.mkdir(inspection_results_path)
+
+    processed_image_path = raw_image_path.replace(
+        "assets", "results")
+    print("processed_image_path", processed_image_path)
+
+    for process_type in PROCESS_TYPES:
+        print('current process type:', process_type)
+        # processed_path (file name) will also append the process type (just before the extension)
+        path, ext = os.path.splitext(processed_image_path)
+        temp = path + "_" + process_type + ext
+
+        print("processed_image_path", temp)
+
+        # relative path (from media root)
+        relative_path = temp.replace(media_root, "")
+
+        # call the process_image function
+        process_image(raw_image_path, temp,
+                      process_type)
+
+        inspection_result = Result(
+            result_image=relative_path,
+            asset=asset,
+        )
+
+        inspection_result.save()
+
+    # asset.status = "processed"
+    # asset.save()
+
+    return True
+
+
+def process_image(raw_image_path, processed_image_path, process_type):
+    ret = handle_imageProcessing(
+        raw_image_path, processed_image_path, process_type)
+
+    if ret:
+        print("successfully processed!")
+    else:
+        print("process failed!")
+
+    return ret
