@@ -51,6 +51,69 @@ def concrete_crack_classification_image(asset_result_id):
 def concrete_crack_classification_video(asset_result_id):
   try:
     asset_result = AssetResult.objects.get(id=asset_result_id)
+
+    video = cv2.VideoCapture(asset_result.asset.file.path)
+
+    # get the video properties
+    fps = video.get(cv2.CAP_PROP_FPS)
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    # get video fourcc
+
+    # number of frames in the video
+    num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    # jump count for the video floor (num_frames ^ 0.5)
+    jump_count = int(num_frames ** 0.3)
+
+
+
+    # extract frames from video and run crack detection on each frame and create a new video
+    # with the crack detection results
+    model = ConcreteCrackClassification()
+    frames = []
+    i = 0
+    while True:
+      ret, frame = video.read()
+      if not ret:
+        break
+      i += 1
+      if i % jump_count != 0:
+        continue
+
+      print(f'Concrete Crack Classification Video : Processing Frame {i}/{num_frames}')
+      result, meta = model.predict(frame)
+      frames.append(result)
+
+    video.release()
+
+    # create a new video with the crack detection results
+    video_path = asset_result.asset.file.path
+    video_name = asset_result.asset.file.name
+
+    temp_video_path = video_path.replace('assets', 'temp')
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
+
+    for frame in frames:
+      out.write(frame)
+
+    out.release()
+
+    result_video_name = video_name.replace('assets/', '')
+    # attact time to the result video name
+    result_video_name = f'{str(int(time.time()))}_{result_video_name}'
+    asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+
+    os.remove(temp_video_path)
+
+    """
+      @Yousuf24100286
+      Save the metadata to the database
+    """
+
+    asset_result.status = 'completed'
+    asset_result.save()
+
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -76,6 +139,56 @@ def crack_detection_basic_image(asset_result_id):
 def crack_detection_basic_video(asset_result_id):
   try:
     asset_result = AssetResult.objects.get(id=asset_result_id)
+    video = cv2.VideoCapture(asset_result.asset.file.path)
+
+    # get the video properties
+    fps = video.get(cv2.CAP_PROP_FPS)
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+
+
+
+    # extract frames from video and run crack detection on each frame and create a new video
+    # with the crack detection results
+    frames = []
+    while True:
+      ret, frame = video.read()
+      if not ret:
+        break
+      result, ratio = crack_detection_basic(frame)
+      frames.append(result)
+
+    video.release()
+    # cv2.destroyAllWindows()
+
+    # create a new video with the crack detection results
+    video_path = asset_result.asset.file.path
+    video_name = asset_result.asset.file.name
+    temp_video_path = video_path.replace('assets', 'temp')
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
+
+    for frame in frames:
+      out.write(frame)
+
+    out.release()
+
+    result_video_name = video_name.replace('assets/', '')
+    # attact time to the result video name
+    result_video_name = f'{str(int(time.time()))}_{result_video_name}'
+    asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+    os.remove(temp_video_path)
+    
+    """
+      @Yousuf24100286
+      Save the metadata to the database
+    """
+
+    asset_result.status = 'completed'
+    asset_result.save()
+    
+
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -102,6 +215,62 @@ def crack_detection_yolo_v8_image(asset_result_id):
 def crack_detection_yolo_v8_video(asset_result_id):
   try:
     asset_result = AssetResult.objects.get(id=asset_result_id)
+
+    video = cv2.VideoCapture(asset_result.asset.file.path)
+
+    # get the video properties
+    fps = video.get(cv2.CAP_PROP_FPS)
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # number of frames in the video
+    num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    # jump count for the video floor (num_frames ^ 0.5)
+    jump_count = int(num_frames ** 0.3)
+    # extract frames from video and run crack detection on each frame and create a new video
+    # with the crack detection results
+    model = CrackDetectionYOLOv8()
+    frames = []
+    i = 0
+    while True:
+      ret, frame = video.read()
+      if not ret:
+        break
+      i += 1
+      if i % jump_count != 0:
+        continue
+      print(f'Crack Detection YOLOv8 Video : Processing Frame {i}/{num_frames}')
+      result, meta = model.predict_image(frame)
+      frames.append(result)
+
+    video.release()
+
+    # create a new video with the crack detection results
+    video_path = asset_result.asset.file.path
+    video_name = asset_result.asset.file.name
+    temp_video_path = video_path.replace('assets', 'temp')
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
+
+    for frame in frames:
+      out.write(frame)
+
+    out.release()
+
+    result_video_name = video_name.replace('assets/', '')
+    # attact time to the result video name
+    result_video_name = f'{str(int(time.time()))}_{result_video_name}'
+    asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+    os.remove(temp_video_path)
+    
+    """
+      @Yousuf24100286
+      Save the metadata to the database
+    """
+
+    asset_result.status = 'completed'
+    asset_result.save()
+
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'

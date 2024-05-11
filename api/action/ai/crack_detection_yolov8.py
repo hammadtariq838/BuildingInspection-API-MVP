@@ -48,7 +48,6 @@ class CrackDetectionYOLOv8:
       boxes = res.boxes
       length_boxes = len(boxes.xyxy)
       for i in range(len(boxes.xyxy)):
-        print(f"YOLO Model Box {i+1} of {length_boxes} in image {length_results}")
         box = boxes.xyxy[i]
         x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
         confidence = boxes.conf[i]

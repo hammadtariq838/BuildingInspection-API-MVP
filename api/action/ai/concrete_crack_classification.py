@@ -81,7 +81,6 @@ class ConcreteCrackClassification:
     positive_segments = 0
     for i in range(0, img_height, img_height//10):
       for j in range(0, img_width, img_width//10):
-        print(f"Concrete Crack Classification - Processing segment {k+1} of {10*10}")
         total_segments += 1
         crop = image[i:i+img_height//10, j:j+img_width//10]
         class_name = self.__predict(Image.fromarray(crop))
