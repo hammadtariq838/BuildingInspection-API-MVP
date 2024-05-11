@@ -14,19 +14,27 @@ from django.http import HttpRequest
 class LoginView(TokenObtainPairView):
 
   def post(self, request, *args, **kwargs):
-    response = super().post(request, *args, **kwargs)
-    
-    user = User.objects.get(username=request.data['username'])
-    # get user serializer
-    user_serializer = UserSerializer(user)
-    return UserResponse(True, 'User logged in successfully', user_serializer.data, response.data, status=status.HTTP_200_OK)
-    
+    try:
+      response = super().post(request, *args, **kwargs)
+      user = User.objects.get(username=request.data['username'])
+      # get user serializer
+      user_serializer = UserSerializer(user)
+      return UserResponse(True, 'User logged in successfully', user_serializer.data, response.data, status=status.HTTP_200_OK)
+    except Exception as e:
+      return ErrorResponse(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RefreshView(TokenRefreshView):
 
   def post(self, request, *args, **kwargs):
-    response = super().post(request, *args, **kwargs)
-    return TokenResponse(True, 'Token refreshed successfully', response.data, status=status.HTTP_200_OK)
+    try:
+      response = super().post(request, *args, **kwargs)
+      if 'access' not in response.data:
+        return ErrorResponse('Token refresh failed', status=status.HTTP_400_BAD_REQUEST)
+      
+      return TokenResponse(True, 'Token refreshed successfully', response.data, status=status.HTTP_200_OK)
+    except Exception as e:
+      return ErrorResponse(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class SignUpView(generics.CreateAPIView):
   serializer_class = UserSerializer
