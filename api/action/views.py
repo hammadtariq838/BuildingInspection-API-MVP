@@ -1,7 +1,7 @@
 # model view set for actions 
 from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny
-from api.response import Response, ErrorResponse
+from api.response import ErrorResponse
 from api.action.response import ActionListResponse
 from .models import Action
 from .serializers import ActionSerializer
