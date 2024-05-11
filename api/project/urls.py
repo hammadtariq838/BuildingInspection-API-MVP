@@ -12,6 +12,6 @@ urlpatterns = [
     'put': 'update',
     'delete': 'destroy'
   })),
-  path('<int:project_id>/asset', include('api.project.asset.urls')),
+  path('<int:project_id>/asset/', include('api.project.asset.urls')),
   # path('<int:project_id>/asset/'),
 ]

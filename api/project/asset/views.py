@@ -105,11 +105,56 @@ class AssetViewSet(viewsets.ModelViewSet):
       return ErrorResponse(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
   def list(self, request, project_id=None):
-    return ErrorResponse('Not implemented', status=status.HTTP_501_NOT_IMPLEMENTED)
+    try:
+      if not project_id:
+        return ErrorResponse('Project ID is required', status=status.HTTP_400_BAD_REQUEST)
+      project_id = int(project_id)
+      try:
+        project = Project.objects.get(id=project_id)
+      except Project.DoesNotExist:
+        return ErrorResponse(f'Project with id {project_id} not found', status=status.HTTP_404_NOT_FOUND)
+      if project.user != request.user:
+        return ErrorResponse('You do not have access to this project', status=status.HTTP_403_FORBIDDEN)
+      
+      query = Asset.objects.filter(project=project)
+      serialized_assets = AssetSerializer(query, many=True).data
+      return AssetListResponse(True, 'Assets retrieved successfully', serialized_assets, status=status.HTTP_200_OK)
+
+    except Exception as e:
+      return ErrorResponse(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    # return ErrorResponse('Not implemented', status=status.HTTP_501_NOT_IMPLEMENTED)
 
   def retrieve(self, request, project_id=None, pk=None):
-    return ErrorResponse('Not implemented', status=status.HTTP_501_NOT_IMPLEMENTED)
+    try:
+      if not project_id:
+        return ErrorResponse('Project ID is required', status=status.HTTP_400_BAD_REQUEST)
+      if not pk:
+        return ErrorResponse('Asset ID is required', status=status.HTTP_400_BAD_REQUEST)
+      project_id = int(project_id)
+      pk = int(pk)
+      try:
+        project = Project.objects.get(id=project_id)
+      except Project.DoesNotExist:
+        return ErrorResponse(f'Project with id {project_id} not found', status=status.HTTP_404_NOT_FOUND)
+      if project.user != request.user:
+        return ErrorResponse('You do not have access to this project', status=status.HTTP_403_FORBIDDEN)
 
+      try:
+        asset = Asset.objects.get(id=pk)
+      except Asset.DoesNotExist:
+        return ErrorResponse(f'Asset with id {pk} not found', status=status.HTTP_404_NOT_FOUND)
+      if asset.project != project:
+        return ErrorResponse('Asset does not belong to this project', status=status.HTTP_403_FORBIDDEN)
+      
+      serialized_asset = AssetSerializer(asset).data
+      return AssetResponse(True, 'Asset retrieved successfully', serialized_asset, status=status.HTTP_200_OK)
+
+    except Exception as e:
+      return ErrorResponse(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
   def update(self, request, project_id=None, pk=None):
     return ErrorResponse('Not implemented', status=status.HTTP_501_NOT_IMPLEMENTED)
 
