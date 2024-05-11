@@ -4,19 +4,42 @@ import time
 import cv2
 from celery import shared_task
 from django.core.files import File
-from api.action.ai import crack_detection_basic
+from api.action.ai import crack_detection_basic, crack_yolo_v8, concrete_model
 from api.project.asset.models import AssetResult
+
+def save_image_results(asset_result_id, result):
+  asset_result = AssetResult.objects.get(id=asset_result_id)
+
+  image_path = asset_result.asset.file.path
+  image_name = asset_result.asset.file.name
+
+  temp_image_path = image_path.replace('assets', 'temp')
+  cv2.imwrite(temp_image_path, result)
+  result_image_name = image_name.replace('assets/', '')
+  # attact time to the result image name
+  result_image_name = f'{str(int(time.time()))}_{result_image_name}'
+  asset_result.result.save(result_image_name, File(open(temp_image_path, 'rb')))
+  os.remove(temp_image_path)
+
+  """
+    @Yousuf24100286
+    Save the metadata to the database
+  """
+
+  asset_result.status = 'completed'
+  asset_result.save()
+
+
 
 @shared_task
 def concrete_crack_classification_image(asset_result_id):
   try:
     asset_result = AssetResult.objects.get(id=asset_result_id)
-    image = cv2.imread(asset_result.asset.file.path)
     
-
-
-
-
+    image = cv2.imread(asset_result.asset.file.path)
+    result, meta = concrete_model.predict(image)
+    
+    save_image_results(asset_result_id, result)
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -38,28 +61,10 @@ def crack_detection_basic_image(asset_result_id):
   try:
     asset_result = AssetResult.objects.get(id=asset_result_id)
 
-    # read the image
     image = cv2.imread(asset_result.asset.file.path)
     result, ratio = crack_detection_basic(image)
-
-    image_path = asset_result.asset.file.path
-    image_name = asset_result.asset.file.name
-
-    temp_image_path = image_path.replace('assets', 'temp')
-    cv2.imwrite(temp_image_path, result)
-    result_image_name = image_name.replace('assets/', '')
-    # attact time to the result image name
-    result_image_name = f'{str(int(time.time()))}_{result_image_name}'
-    asset_result.result.save(result_image_name, File(open(temp_image_path, 'rb')))
-    os.remove(temp_image_path)
-
-    """
-      @Yousuf24100286
-      Save the metadata to the database
-    """
-
-    asset_result.status = 'completed'
-    asset_result.save()
+    
+    save_image_results(asset_result_id, result)
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -80,9 +85,11 @@ def crack_detection_basic_video(asset_result_id):
 def crack_detection_yolo_v8_image(asset_result_id):
   try:
     asset_result = AssetResult.objects.get(id=asset_result_id)
-    image = cv2.imread(asset_result.asset.file.path)
-
     
+    image = cv2.imread(asset_result.asset.file.path)
+    result, meta = crack_yolo_v8.predict_image(image)
+    
+    save_image_results(asset_result_id, result)
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
