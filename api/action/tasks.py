@@ -4,7 +4,7 @@ import time
 import cv2
 from celery import shared_task
 from django.core.files import File
-from api.action.ai import crack_detection_basic, crack_yolo_v8, concrete_model
+from api.action.ai import crack_detection_basic, CrackDetectionYOLOv8, ConcreteCrackClassification
 from api.project.asset.models import AssetResult
 
 def save_image_results(asset_result_id, result):
@@ -37,6 +37,7 @@ def concrete_crack_classification_image(asset_result_id):
     asset_result = AssetResult.objects.get(id=asset_result_id)
     
     image = cv2.imread(asset_result.asset.file.path)
+    concrete_model = ConcreteCrackClassification()
     result, meta = concrete_model.predict(image)
     
     save_image_results(asset_result_id, result)
@@ -87,6 +88,7 @@ def crack_detection_yolo_v8_image(asset_result_id):
     asset_result = AssetResult.objects.get(id=asset_result_id)
     
     image = cv2.imread(asset_result.asset.file.path)
+    crack_yolo_v8 = CrackDetectionYOLOv8()
     result, meta = crack_yolo_v8.predict_image(image)
     
     save_image_results(asset_result_id, result)

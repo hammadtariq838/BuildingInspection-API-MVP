@@ -9,21 +9,14 @@ pretrained_model_path = os.path.join(current_dir, 'pretrained/crack_detection_yo
 
 
 class CrackDetectionYOLOv8:
-  __instance = None
   __model: Any = None
 
-  def __new__(cls, *args, **kwargs):
-    if cls.__instance is None:
-      cls.__instance = super().__new__(cls, *args, **kwargs)
-      pretrained_model_exists = os.path.exists(pretrained_model_path)
-      if pretrained_model_exists:
-        cls.__load_model(cls.__instance)
-      else:
-        raise FileNotFoundError(f"Pretrained model not found at {pretrained_model_path}")
-    return cls.__instance
-
   def __init__(self):
-    pass
+    pretrained_model_exists = os.path.exists(pretrained_model_path)
+    if pretrained_model_exists:
+      self.__load_model()
+    else:
+      raise FileNotFoundError(f"Pretrained model not found at {pretrained_model_path}")
 
 
   @property
@@ -49,9 +42,13 @@ class CrackDetectionYOLOv8:
   def predict_image(self, image):
     results = self.__model(image)
     meta = []
+    # length of results is the number of images
+    length_results = len(results)
     for res in results:
       boxes = res.boxes
+      length_boxes = len(boxes.xyxy)
       for i in range(len(boxes.xyxy)):
+        print(f"YOLO Model Box {i+1} of {length_boxes} in image {length_results}")
         box = boxes.xyxy[i]
         x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
         confidence = boxes.conf[i]
@@ -69,5 +66,3 @@ class CrackDetectionYOLOv8:
         })
     return image, meta
   
-
-crack_yolo_v8 = CrackDetectionYOLOv8()

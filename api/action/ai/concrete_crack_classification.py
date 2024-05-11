@@ -12,7 +12,6 @@ pretrained_model_path = os.path.join(current_directory, 'pretrained/concrete_cra
 
 
 class ConcreteCrackClassification:
-  __instance = None
   __model: Any = None
   # means and standard deviations for the model input - RGB images of size 227x227
   __mean_nums = [0.485, 0.456, 0.406]
@@ -39,19 +38,12 @@ class ConcreteCrackClassification:
     return self.__model
 
 
-
-  def __new__(cls, *args, **kwargs):
-    if cls.__instance is None:
-      cls.__instance = super().__new__(cls, *args, **kwargs)
-      pretrained_model_exists = os.path.exists(pretrained_model_path)
-      if pretrained_model_exists:
-        cls.__load_model(cls.__instance)
-      else:
-        raise FileNotFoundError(f"Pretrained model not found at {pretrained_model_path}")
-    return cls.__instance
-
   def __init__(self):
-    pass
+    pretrained_model_exists = os.path.exists(pretrained_model_path)
+    if pretrained_model_exists:
+      self.__load_model()
+    else:
+      raise FileNotFoundError(f"Pretrained model not found at {pretrained_model_path}")
 
   def __load_model(self):
     if not os.path.exists(pretrained_model_path):
@@ -87,10 +79,11 @@ class ConcreteCrackClassification:
     output_image = np.zeros_like(image)
     total_segments = 0
     positive_segments = 0
-    for i in range(0, img_height, img_height//30):
-      for j in range(0, img_width, img_width//30):
+    for i in range(0, img_height, img_height//10):
+      for j in range(0, img_width, img_width//10):
+        print(f"Concrete Crack Classification - Processing segment {k+1} of {10*10}")
         total_segments += 1
-        crop = image[i:i+img_height//30, j:j+img_width//30]
+        crop = image[i:i+img_height//10, j:j+img_width//10]
         class_name = self.__predict(Image.fromarray(crop))
         if class_name == 'Positive':
           color = (0, 0, 255)
@@ -101,7 +94,7 @@ class ConcreteCrackClassification:
         colorBox = np.zeros_like(crop, dtype=np.uint8)
         colorBox[:] = color
         added_image = addWeighted(crop, 0.7, colorBox, 0.3, 0)
-        output_image[i:i+img_height//30, j:j+img_width//30] = added_image
+        output_image[i:i+img_height//10, j:j+img_width//10] = added_image
     return output_image, {
       "total_segments": total_segments,
       "positive_segments": positive_segments
@@ -109,5 +102,3 @@ class ConcreteCrackClassification:
 
   def get_model(self):
     return self.model
-
-concrete_model = ConcreteCrackClassification()
