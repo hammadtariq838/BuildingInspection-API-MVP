@@ -4,8 +4,8 @@ import time
 import cv2
 from celery import shared_task
 from django.core.files import File
-from api.action.ai import crack_detection_basic, CrackDetectionYOLOv8, ConcreteCrackClassification
-from api.project.asset.models import AssetResult
+from api.action.ai import crack_detection_basic, CrackDetectionYOLOv8, ConcreteCrackClassification, before_after
+from api.project.asset.models import AssetResult, ChildAsset
 
 def save_image_results(asset_result_id, result):
   asset_result = AssetResult.objects.get(id=asset_result_id)
@@ -278,3 +278,26 @@ def crack_detection_yolo_v8_video(asset_result_id):
     return
 
   
+
+@shared_task
+def before_after_image(asset_result_id):
+  try:
+    asset_result = AssetResult.objects.get(id=asset_result_id)
+    # get asset
+    asset = asset_result.asset
+    # get child assets
+    child_assets = ChildAsset.objects.filter(parent=asset)
+    child_assets = list(child_assets)
+
+    if len(child_assets) != 1:
+      raise Exception('Only 1 child asset is allowed for before_after_image task')
+
+    image = cv2.imread(asset_result.asset.file.path)
+    before_image, after_image = before_after(image)
+
+    save_image_results(asset_result_id, after_image)
+  except Exception as e:
+    asset_result.error = str(e)
+    asset_result.status = 'failed'
+    asset_result.save()
+    return

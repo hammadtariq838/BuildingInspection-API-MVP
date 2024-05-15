@@ -1,18 +1,33 @@
 from rest_framework import serializers
-from .models import Project, ProjectAction
+from .models import Project, ProjectTemplate
 from api.action.serializers import ActionSerializer
 from api.project.asset.models import Asset
 from api.project.asset.serializers import AssetSerializer
+
+class ProjectTemplateSerializer(serializers.ModelSerializer):
+
+  def to_representation(self, instance):
+    data = super().to_representation(instance)
+    # retrieve all the related actions
+    actions = ActionSerializer(instance.actions.all(), many=True).data
+    data['actions'] = actions
+    return data
+
+  class Meta:
+    model = ProjectTemplate
+    fields = '__all__'
+    extra_kwargs = {"actions": {"read_only": True}}
+
 
 class ProjectSerializer(serializers.ModelSerializer):
 
   def to_representation(self, instance):
     data = super().to_representation(instance)
     # retrieve all the related actions
-    action_query = ProjectAction.objects.filter(project=instance)
-    data['actions'] = [ActionSerializer(action.action).data for action in action_query]
-    asset_query = Asset.objects.filter(project=instance)
-    data['assets'] = [AssetSerializer(asset).data for asset in asset_query]
+    project_template = ProjectTemplateSerializer(instance.template).data
+    data['template'] = project_template
+    data['assets'] = AssetSerializer(instance.assets.all(), many=True).data
+    
     return data
 
 
@@ -28,8 +43,8 @@ class ProjectSerializer(serializers.ModelSerializer):
   
 
   
-class ProjectActionSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = ProjectAction
-    fields = '__all__'
-    extra_kwargs = {"project": {"read_only": True}, "action": {"read_only": True}}
+# class ProjectActionSerializer(serializers.ModelSerializer):
+#   class Meta:
+#     model = ProjectAction
+#     fields = '__all__'
+#     extra_kwargs = {"project": {"read_only": True}, "action": {"read_only": True}}

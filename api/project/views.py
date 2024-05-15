@@ -1,10 +1,25 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import ProjectSerializer
-from .models import Project, ProjectAction
+from .serializers import ProjectSerializer, ProjectTemplateSerializer
+from .models import Project, ProjectTemplate
 from api.response import ErrorResponse, Response
-from api.project.response import ProjectResponse, ProjectListResponse
+from api.project.response import ProjectResponse, ProjectListResponse, ProjectTemplateListResponse
 from api.action.models import Action
+
+
+class ProjectTemplateViewSet(viewsets.ModelViewSet):
+  permission_classes = [IsAuthenticated]
+
+  def list(self, request):
+    try:
+      project_templates = ProjectTemplate.objects.all()
+      serialized_project_templates = ProjectTemplateSerializer(project_templates, many=True).data
+
+      return ProjectTemplateListResponse(True, 'Project Templates retrieved successfully', serialized_project_templates, status=status.HTTP_200_OK)
+    except Exception as e:
+      return ErrorResponse(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 class ProjectViewSet(viewsets.ModelViewSet):
   permission_classes = [IsAuthenticated]
@@ -13,26 +28,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
     try:
       user = request.user
       name = request.data['name']
+      template = request.data.get('template')
       # name is a non empty string
       if not name or not name.strip():
         return ErrorResponse('Name is required', status=status.HTTP_400_BAD_REQUEST)
       
-      actions = request.data.get('actions')
-      if not actions or not isinstance(actions, list) or len(actions) == 0:
-        return ErrorResponse('1 or more actions are required', status=status.HTTP_400_BAD_REQUEST)
-      for action_id in actions:
-        action = Action.objects.filter(id=action_id).first()
-        if not action:
-          return ErrorResponse(f'Action with id {action_id} not found', status=status.HTTP_404_NOT_FOUND)
-      
-      project = Project(user=user, name=name)
-      project.save()
-      for action_id in actions:
-        action = Action.objects.get(id=action_id)
-        project_action = ProjectAction(project=project, action=action)
-        project_action.save()
+      if not template or not isinstance(template, int):
+        return ErrorResponse('Template is required', status=status.HTTP_400_BAD_REQUEST)
 
-      serialized_project = ProjectSerializer().to_representation(project)
+      project_template = ProjectTemplate.objects.filter(id=template).first()
+      if not project_template:
+        return ErrorResponse('Project Template not found', status=status.HTTP_404_NOT_FOUND)
+      
+      project = Project(user=user, name=name, template=project_template)
+      project.save()
+      # actions = request.data.get('actions')
+      # if not actions or not isinstance(actions, list) or len(actions) == 0:
+      #   return ErrorResponse('1 or more actions are required', status=status.HTTP_400_BAD_REQUEST)
+      # for action_id in actions:
+      #   action = Action.objects.filter(id=action_id).first()
+      #   if not action:
+      #     return ErrorResponse(f'Action with id {action_id} not found', status=status.HTTP_404_NOT_FOUND)
+      
+      # project = Project(user=user, name=name)
+      # project.save()
+      # for action_id in actions:
+      #   action = Action.objects.get(id=action_id)
+      #   project_action = ProjectAction(project=project, action=action)
+      #   project_action.save()
+
+      serialized_project = ProjectSerializer(project).data
 
       return ProjectResponse(True, 'Project created successfully', serialized_project, status=status.HTTP_201_CREATED)
     except Exception as e:

@@ -11,13 +11,29 @@ class Asset(models.Model):
     ('video', 'Video'),
   ])
   name = models.CharField(max_length=255)
-  file = models.FileField(upload_to='assets/')
+  file = models.FileField(upload_to='assets/', null=True, blank=True, default=None)
   created_at = models.DateTimeField(auto_now_add=True)
   updated_at = models.DateTimeField(auto_now=True)
 
   def __str__(self):
     return self.name + ' - ' + self.asset_type + ' - ' + self.project.name
+
+class ChildAsset(models.Model):
+  parent = models.ForeignKey(
+    Asset, on_delete=models.CASCADE, related_name='children')
+  asset_type = models.CharField(max_length=255, default='image', choices=[
+    ('image', 'Image'),
+    ('video', 'Video'),
+  ])
+  name = models.CharField(max_length=255)
+  file = models.FileField(upload_to='assets/', null=True, blank=True, default=None)
+  created_at = models.DateTimeField(auto_now_add=True)
+  updated_at = models.DateTimeField(auto_now=True)
+
+  def __str__(self):
+    return self.name + ' - ' + self.asset_type + ' - ' + self.parent.name
   
+    
 
 class AssetResult(models.Model):
 

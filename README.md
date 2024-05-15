@@ -42,3 +42,18 @@ docker-compose run django python manage.py createsuperuser
   python manage.py makemigrations
   python manage.py migrate
 ```
+
+
+
+
+## API Endpoints
+
+Flow:
+  Create a project -> Select Template -> Upload Assets -> Run Analysis -> View Results
+  
+
+
+Project Types:
+ - Crack Detection
+ - Moss Detection
+ - Before After
