@@ -22,6 +22,12 @@ docker-compose down
 docker-compose run django python manage.py createsuperuser
 ```
 
+6. Load Dump Data
+```bash
+docker-compose run django python manage.py loaddata dump.json
+```
+
+
 ## Django commands
 1. First Time Setup
 ```bash
