@@ -292,8 +292,10 @@ def before_after_image(asset_result_id):
     if len(child_assets) != 1:
       raise Exception('Only 1 child asset is allowed for before_after_image task')
 
-    image = cv2.imread(asset_result.asset.file.path)
-    before_image, after_image = before_after(image)
+    before_image = cv2.imread(asset.file.path)
+    after_image = cv2.imread(child_assets[0].file.path)
+
+    before_image, after_image = before_after(before_image, after_image)
 
     save_image_results(asset_result_id, after_image)
   except Exception as e:

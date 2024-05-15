@@ -27,7 +27,7 @@ class Project(models.Model):
     User, on_delete=models.CASCADE, related_name='projects')
   name = models.CharField(max_length=255)
   template = models.ForeignKey(
-    ProjectTemplate, on_delete=models.CASCADE, related_name='projects')
+    ProjectTemplate, on_delete=models.CASCADE, related_name='projects', null=True, blank=True)
   updated_at = models.DateTimeField(auto_now=True)
   created_at = models.DateTimeField(auto_now_add=True)
 

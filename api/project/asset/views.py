@@ -30,7 +30,7 @@ SWITCHER = {
   'crack_detection_yolo_v8_video': crack_detection_yolo_v8_video,
   'concrete_crack_classification_image': concrete_crack_classification_image,
   'concrete_crack_classification_video': concrete_crack_classification_video,
-  'befor_after_image': before_after_image,
+  'before_after_image': before_after_image,
 }
 
 class AssetViewSet(viewsets.ModelViewSet):  
@@ -144,9 +144,10 @@ class AssetViewSet(viewsets.ModelViewSet):
           parent_asset_result = AssetResult(asset=parent_asset, action=action)
           parent_asset_result.save()
 
+          print('Function:', action.function + '_' + parent_asset.asset_type)
           function = SWITCHER.get(action.function + '_' + parent_asset.asset_type, None)
           if function:            
-            function.delay(parent_asset_result)
+            function.delay(parent_asset_result.id)
           else:
             parent_asset_result.status = 'failed'
             parent_asset_result.error = 'Action not found'
