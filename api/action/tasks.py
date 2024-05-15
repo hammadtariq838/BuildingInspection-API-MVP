@@ -6,8 +6,9 @@ from celery import shared_task
 from django.core.files import File
 from api.action.ai import crack_detection_basic, CrackDetectionYOLOv8, ConcreteCrackClassification, before_after
 from api.project.asset.models import AssetResult, ChildAsset
+import json
 
-def save_image_results(asset_result_id, result):
+def save_image_results(asset_result_id, result, meta=None):
   asset_result = AssetResult.objects.get(id=asset_result_id)
 
   image_path = asset_result.asset.file.path
@@ -19,6 +20,15 @@ def save_image_results(asset_result_id, result):
   # attact time to the result image name
   result_image_name = f'{str(int(time.time()))}_{result_image_name}'
   asset_result.result.save(result_image_name, File(open(temp_image_path, 'rb')))
+  # check if meta is JSON serializable
+  if meta:
+    try:
+      json.dumps(meta)
+    except Exception as e:
+      meta = None
+  
+  asset_result.metadata = meta if meta else {}
+  asset_result.save()
   os.remove(temp_image_path)
 
   """
@@ -40,7 +50,7 @@ def concrete_crack_classification_image(asset_result_id):
     concrete_model = ConcreteCrackClassification()
     result, meta = concrete_model.predict(image)
     
-    save_image_results(asset_result_id, result)
+    save_image_results(asset_result_id, result, meta)
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -70,6 +80,7 @@ def concrete_crack_classification_video(asset_result_id):
     # extract frames from video and run crack detection on each frame and create a new video
     # with the crack detection results
     model = ConcreteCrackClassification()
+    metaList = []
     frames = []
     i = 0
     while True:
@@ -83,6 +94,7 @@ def concrete_crack_classification_video(asset_result_id):
       print(f'Concrete Crack Classification Video : Processing Frame {i}/{num_frames}')
       result, meta = model.predict(frame)
       frames.append(result)
+      metaList.append(meta)
 
     video.release()
 
@@ -103,6 +115,13 @@ def concrete_crack_classification_video(asset_result_id):
     # attact time to the result video name
     result_video_name = f'{str(int(time.time()))}_{result_video_name}'
     asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+    # check if meta is JSON serializable
+    try:
+      json.dumps(metaList)
+    except Exception as e:
+      metaList = None
+    asset_result.metadata = metaList if metaList else {}
+    asset_result.save()
 
     os.remove(temp_video_path)
 
@@ -128,7 +147,7 @@ def crack_detection_basic_image(asset_result_id):
     image = cv2.imread(asset_result.asset.file.path)
     result, ratio = crack_detection_basic(image)
     
-    save_image_results(asset_result_id, result)
+    save_image_results(asset_result_id, result, {'ratio': ratio})
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -152,11 +171,13 @@ def crack_detection_basic_video(asset_result_id):
     # extract frames from video and run crack detection on each frame and create a new video
     # with the crack detection results
     frames = []
+    rations = []
     while True:
       ret, frame = video.read()
       if not ret:
         break
       result, ratio = crack_detection_basic(frame)
+      rations.append(ratio)
       frames.append(result)
 
     video.release()
@@ -178,6 +199,8 @@ def crack_detection_basic_video(asset_result_id):
     # attact time to the result video name
     result_video_name = f'{str(int(time.time()))}_{result_video_name}'
     asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+    asset_result.metadata = {'ratios': rations}
+    asset_result.save()
     os.remove(temp_video_path)
     
     """
@@ -204,7 +227,7 @@ def crack_detection_yolo_v8_image(asset_result_id):
     crack_yolo_v8 = CrackDetectionYOLOv8()
     result, meta = crack_yolo_v8.predict_image(image)
     
-    save_image_results(asset_result_id, result)
+    save_image_results(asset_result_id, result, meta)
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'
@@ -231,6 +254,7 @@ def crack_detection_yolo_v8_video(asset_result_id):
     # with the crack detection results
     model = CrackDetectionYOLOv8()
     frames = []
+    metaList = []
     i = 0
     while True:
       ret, frame = video.read()
@@ -241,6 +265,7 @@ def crack_detection_yolo_v8_video(asset_result_id):
         continue
       print(f'Crack Detection YOLOv8 Video : Processing Frame {i}/{num_frames}')
       result, meta = model.predict_image(frame)
+      metaList.append(meta)
       frames.append(result)
 
     video.release()
@@ -261,6 +286,13 @@ def crack_detection_yolo_v8_video(asset_result_id):
     # attact time to the result video name
     result_video_name = f'{str(int(time.time()))}_{result_video_name}'
     asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+    # check if meta is JSON serializable
+    try:
+      json.dumps(metaList)
+    except Exception as e:
+      metaList = None
+    asset_result.metadata = metaList if metaList else {}
+    asset_result.save()
     os.remove(temp_video_path)
     
     """
@@ -297,7 +329,27 @@ def before_after_image(asset_result_id):
 
     before_image, after_image = before_after(before_image, after_image)
 
-    save_image_results(asset_result_id, after_image)
+    # run yolo model on before and after images
+    crack_yolo_v8 = CrackDetectionYOLOv8()
+    before_image, meta_before = crack_yolo_v8.predict_image(before_image)
+    after_image, meta_after = crack_yolo_v8.predict_image(after_image)
+
+    save_image_results(asset_result_id, after_image, {'before': meta_before, 'after': meta_after})
+
+    # save the before image at the same location of the asset
+    before_image_path = asset.file.path
+    before_image_name = asset.file.name
+    temp_before_image_path = before_image_path.replace('assets', 'temp')
+    cv2.imwrite(temp_before_image_path, before_image)
+    before_image_name = f'before_{before_image_name}'
+    asset_result.asset.file.save(before_image_name, File(open(temp_before_image_path, 'rb')))
+    os.remove(temp_before_image_path)
+
+    """
+      @Yousuf24100286
+      Save the metadata to the database
+    """
+
   except Exception as e:
     asset_result.error = str(e)
     asset_result.status = 'failed'

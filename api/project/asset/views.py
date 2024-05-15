@@ -72,6 +72,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
 
         for field in project_template.form_file_fields:
+          assets = []
           for file in request.FILES.getlist(field['name']):
             file_type = 'image' if file.content_type in IMAGE_MIME_TYPES else None
             file_type = 'video' if file.content_type in VIDEO_MIME_TYPES else file_type
@@ -81,6 +82,7 @@ class AssetViewSet(viewsets.ModelViewSet):
             file.name = f'{str(int(time.time()))}_{field_name}_{file_name}'
             asset = Asset(project=project, asset_type=file_type, name=file_name, file=file)
             asset.save()
+            assets.append(asset)
             for action in project_template.actions.all():
               asset_result = AssetResult(asset=asset, action=action)
               asset_result.save()
@@ -91,8 +93,9 @@ class AssetViewSet(viewsets.ModelViewSet):
                 asset_result.status = 'failed'
                 asset_result.error = 'Action not found'
                 asset_result.save()
-            serialized_assets = AssetSerializer(asset).data
-            return AssetResponse(True, 'Asset uploaded successfully', serialized_assets, status=status.HTTP_201_CREATED)
+
+        serialized_assets = AssetSerializer(assets, many=True).data
+        return AssetResponse(True, 'Assets uploaded successfully', serialized_assets, status=status.HTTP_201_CREATED)
           
       else:
         # get the parent field
