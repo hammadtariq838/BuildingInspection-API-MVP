@@ -66,4 +66,4 @@ def crack_detection_basic(image):
 	red_mask = cv2.bitwise_and(black, red)
 	result = cv2.addWeighted(image, 1, red_mask, 1, 0)
 
-	return result, ratio
+	return result, float(ratio)

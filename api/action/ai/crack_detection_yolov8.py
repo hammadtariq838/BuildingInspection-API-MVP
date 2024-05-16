@@ -57,11 +57,11 @@ class CrackDetectionYOLOv8:
         temp = int(image.shape[0]/25)
         cv2.putText(image, txt, (x1, y1+temp), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255,36,12), 2)
         meta.append({
-          "x1": x1,
-          "y1": y1,
-          "x2": x2,
-          "y2": y2,
-          "confidence": confidence
+          "x1": int(x1),
+          "y1": int(y1),
+          "x2": int(x2),
+          "y2": int(y2),
+          "confidence": int(confidence)
         })
     return image, meta
   

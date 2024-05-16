@@ -95,8 +95,8 @@ class ConcreteCrackClassification:
         added_image = addWeighted(crop, 0.7, colorBox, 0.3, 0)
         output_image[i:i+img_height//10, j:j+img_width//10] = added_image
     return output_image, {
-      "total_segments": total_segments,
-      "positive_segments": positive_segments
+      "total_segments": int(total_segments),
+      "positive_segments": int(positive_segments)
     }
 
   def get_model(self):

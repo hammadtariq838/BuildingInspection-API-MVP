@@ -23,11 +23,13 @@ def save_image_results(asset_result_id, result, meta=None):
   # check if meta is JSON serializable
   if meta:
     try:
+      print('Checking if meta is JSON serializable')
       json.dumps(meta)
     except Exception as e:
+      print('Meta is not JSON serializable', str(e))
       meta = None
   
-  asset_result.metadata = meta if meta else {}
+  asset_result.metadata = meta if meta else dict()
   asset_result.save()
   os.remove(temp_image_path)
 
@@ -120,7 +122,20 @@ def concrete_crack_classification_video(asset_result_id):
       json.dumps(metaList)
     except Exception as e:
       metaList = None
-    asset_result.metadata = metaList if metaList else {}
+
+    # compute everage of positive segments
+    num_segments = len(metaList)
+    positive_segments = 0
+    total_segments = 0
+    for meta in metaList:
+      positive_segments += meta['positive_segments']
+      total_segments += meta['total_segments']
+    metaList = {
+      'positive_segments': positive_segments / num_segments if num_segments > 0 else 0.0,
+      'total_segments': total_segments / num_segments if num_segments > 0 else 0.0
+    }
+
+    asset_result.metadata = metaList if metaList else dict()
     asset_result.save()
 
     os.remove(temp_video_path)
@@ -199,7 +214,7 @@ def crack_detection_basic_video(asset_result_id):
     # attact time to the result video name
     result_video_name = f'{str(int(time.time()))}_{result_video_name}'
     asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
-    asset_result.metadata = {'ratios': rations}
+    asset_result.metadata = {'average_ratios': rations / len(rations) if len(rations) > 0 else 0.0 }
     asset_result.save()
     os.remove(temp_video_path)
     
@@ -218,6 +233,22 @@ def crack_detection_basic_video(asset_result_id):
     asset_result.save()
     return
   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @shared_task
 def crack_detection_yolo_v8_image(asset_result_id):
   try:
@@ -291,7 +322,7 @@ def crack_detection_yolo_v8_video(asset_result_id):
       json.dumps(metaList)
     except Exception as e:
       metaList = None
-    asset_result.metadata = metaList if metaList else {}
+    asset_result.metadata = metaList if metaList else dict()
     asset_result.save()
     os.remove(temp_video_path)
     
@@ -334,7 +365,10 @@ def before_after_image(asset_result_id):
     before_image, meta_before = crack_yolo_v8.predict_image(before_image)
     after_image, meta_after = crack_yolo_v8.predict_image(after_image)
 
-    save_image_results(asset_result_id, after_image, {'before': meta_before, 'after': meta_after})
+    meta = dict()
+    meta['after'] = meta_after
+    meta['before'] = meta_before
+    save_image_results(asset_result_id, after_image, meta)
 
     # save the before image at the same location of the asset
     before_image_path = asset.file.path
