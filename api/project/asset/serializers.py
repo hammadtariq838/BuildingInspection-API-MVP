@@ -25,5 +25,5 @@ class AssetResultSerializer(serializers.ModelSerializer):
 
   class Meta:
     model = AssetResult
-    fields = ['id', 'result', 'status', 'error']
+    fields = ['id', 'result', 'status', 'error', 'metadata']
     extra_kwargs = {"asset": {"read_only": True}}
