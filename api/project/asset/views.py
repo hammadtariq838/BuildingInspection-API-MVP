@@ -10,7 +10,7 @@ from api.project.models import ProjectTemplate
 from api.project.serializers import ProjectSerializer
 from api.response import ErrorResponse
 from api.project.asset.response import AssetResponse, AssetListResponse
-from api.action.tasks import concrete_crack_classification_image, concrete_crack_classification_video, crack_detection_basic_image, crack_detection_basic_video, crack_detection_yolo_v8_image, crack_detection_yolo_v8_video, before_after_image
+from api.action.tasks import concrete_crack_classification_image, concrete_crack_classification_video, crack_detection_basic_image, crack_detection_basic_video, crack_detection_yolo_v8_image, crack_detection_yolo_v8_video, before_after_image, moss_detection_video, moss_detection_image
 
 
 IMAGE_MIME_TYPES = [
@@ -31,6 +31,8 @@ SWITCHER = {
   'concrete_crack_classification_image': concrete_crack_classification_image,
   'concrete_crack_classification_video': concrete_crack_classification_video,
   'before_after_image': before_after_image,
+  'moss_detection_image': moss_detection_image,
+  'moss_detection_video': moss_detection_video
 }
 
 class AssetViewSet(viewsets.ModelViewSet):  

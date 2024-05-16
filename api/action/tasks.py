@@ -4,7 +4,7 @@ import time
 import cv2
 from celery import shared_task
 from django.core.files import File
-from api.action.ai import crack_detection_basic, CrackDetectionYOLOv8, ConcreteCrackClassification, before_after
+from api.action.ai import crack_detection_basic, CrackDetectionYOLOv8, ConcreteCrackClassification, before_after, moss_detection
 from api.project.asset.models import AssetResult, ChildAsset
 import json
 
@@ -389,3 +389,97 @@ def before_after_image(asset_result_id):
     asset_result.status = 'failed'
     asset_result.save()
     return
+  
+
+@shared_task
+def moss_detection_image(asset_result_id):
+  try:
+    asset_result = AssetResult.objects.get(id=asset_result_id)
+    
+    image = cv2.imread(asset_result.asset.file.path)
+    result, meta = moss_detection(image)
+    
+    save_image_results(asset_result_id, result, meta)
+  except Exception as e:
+    asset_result.error = str(e)
+    asset_result.status = 'failed'
+    asset_result.save()
+    return
+  
+@shared_task
+def moss_detection_video(asset_result_id):
+  try:
+    asset_result = AssetResult.objects.get(id=asset_result_id)
+
+    video = cv2.VideoCapture(asset_result.asset.file.path)
+
+    # get the video properties
+    fps = video.get(cv2.CAP_PROP_FPS)
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    # get video fourcc
+
+    # number of frames in the video
+    num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    # jump count for the video floor (num_frames ^ 0.5)
+    jump_count = int(num_frames ** 0.3)
+
+    # extract frames from video and run crack detection on each frame and create a new video
+    # with the crack detection results
+    model = moss_detection()
+    frames = []
+    metaList = []
+    i = 0
+    while True:
+      ret, frame = video.read()
+      if not ret:
+        break
+      i += 1
+      if i % jump_count != 0:
+        continue
+      print(f'Moss Detection Video : Processing Frame {i}/{num_frames}')
+      result, meta = model(frame)
+      metaList.append(meta)
+      frames.append(result)
+
+    video.release()
+
+    # create a new video with the crack detection results
+    video_path = asset_result.asset.file.path
+    video_name = asset_result.asset.file.name
+    temp_video_path = video_path.replace('assets', 'temp')
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
+
+    for frame in frames:
+      out.write(frame)
+
+    out.release()
+
+    result_video_name = video_name.replace('assets/', '')
+    # attact time to the result video name
+    result_video_name = f'{str(int(time.time()))}_{result_video_name}'
+    asset_result.result.save(result_video_name, File(open(temp_video_path, 'rb')))
+    # check if meta is JSON serializable
+    try:
+      json.dumps(metaList[0])
+    except Exception as e:
+      metaList = None
+    asset_result.metadata = metaList[0] if metaList else dict()
+    asset_result.save()
+    os.remove(temp_video_path)
+    
+    """
+      @Yousuf24100286
+      Save the metadata to the database
+    """
+
+    asset_result.status = 'completed'
+    asset_result.save()
+
+  except Exception as e:
+    asset_result.error = str(e)
+    asset_result.status = 'failed'
+    asset_result.save()
+    return
+  
