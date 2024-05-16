@@ -1,6 +1,11 @@
 venv/
 .env
-media/
+# media/
+media/*.jpeg
+media/**/*.jpeg
+media/*.mp4
+media/**/*.mp4
+
 .env
 db.sqlite3
 venv/
