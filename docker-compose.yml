@@ -58,6 +58,14 @@ services:
       - pgdata:/var/lib/postgresql/data/
     ports:
       - "5432:5432"
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    depends_on:
+      - django
 
 volumes:
   pgdata:
