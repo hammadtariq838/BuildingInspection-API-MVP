@@ -79,7 +79,7 @@ class AssetViewSet(viewsets.ModelViewSet):
             file_name = file.name
             field_name = field['name']
             # attach timestamp and file type to the file name
-            file.name = f'{str(int(time.time()))}_{field_name}_{file_name}'
+            file.name = f'{str(int(time.time()))}_{file_name}'
             asset = Asset(project=project, asset_type=file_type, name=file_name, file=file)
             asset.save()
             assets.append(asset)
@@ -121,7 +121,7 @@ class AssetViewSet(viewsets.ModelViewSet):
         parent_file_name = parent_file.name
         parent_field_name = parent_field['name']
         # attach timestamp and file type to the file name
-        parent_file.name = f'{str(int(time.time()))}_{parent_field_name}_{parent_file_name}'
+        parent_file.name = f'{str(int(time.time()))}_{parent_file_name}'
         parent_asset = Asset(project=project, asset_type=parent_file_type, name=parent_file_name, file=parent_file)
         parent_asset.save()
 
